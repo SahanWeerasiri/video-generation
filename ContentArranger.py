@@ -4,7 +4,7 @@ def content_arrange(images,maps,data):
     full_content =[]
     for entry in data:
         loc = []
-        loc.append(maps[i])
+        #loc.append(maps[i])
         for image_file in entry['content']:
             # Skip non-image files (e.g., video files)
             if not image_file.lower().endswith(('.png', '.jpg', '.jpeg')):
@@ -13,5 +13,6 @@ def content_arrange(images,maps,data):
                 loc.append(images[loc_in_images])
                 loc_in_images+=1
         i+=1
+        loc.append(maps[i])
         full_content.extend(loc)
     return full_content

@@ -35,11 +35,15 @@ def map_transitions(locations):
     # Animation function
     line, = ax.plot([], [], 'b-', linewidth=2, transform=ccrs.PlateCarree())
     point, = ax.plot([], [], 'bo', transform=ccrs.PlateCarree(), markersize=10)
+    # Initialize text object for displaying location names
+    text = ax.text(0, 0, '', transform=ccrs.PlateCarree(), fontsize=12, fontweight='bold', color='black')
+
 
     def init():
         line.set_data([], [])
         point.set_data([], [])
-        return line, point
+        text.set_text('')
+        return line, point, text
 
     def animate(frame):
         total_frames = 100 * (len(locations) - 1)
@@ -58,6 +62,12 @@ def map_transitions(locations):
         line.set_data(lons, lats)
         point.set_data([current_lon], [current_lat])  # Wrap in list to make it a sequence
 
+        # Update text to show the current location name
+        current_location_name = locations[current_segment]["name"]
+        #text.set_position((current_lon, current_lat))
+        text.set_position(locations[current_segment]["coords"])
+        text.set_text(current_location_name)
+        
         if frame % 10 == 0:
             progress = (frame + 1) / total_frames * 100
             elapsed_time = time.time() - start_time
