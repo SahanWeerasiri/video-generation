@@ -1,138 +1,69 @@
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-import matplotlib.pyplot as plt
-import numpy as np
-from matplotlib.animation import FuncAnimation
-from matplotlib.animation import PillowWriter
-import time
+import MapTransitions as mt
+import AudioDetector as ad
+import ImageTexter as it
+import ContentArranger as ca
+import VideoCreator as vc
 
-# Input coordinates for locations
-locations = [
-    {"name": "Colombo", "coords": [79.861244, 6.927079]},
-    {"name": "Galle", "coords": [80.2210, 6.0535]},
-    {"name": "Yala National Park", "coords": [81.5016, 6.3728]},
-    {"name": "Trincomalee", "coords": [81.2330, 8.5774]},
-    {"name": "Colombo", "coords": [79.861244, 6.927079]}  # Return to start
-]
+data = [{
+    'location':{"name": "Colombo", "coords": [79.861244, 6.927079]},
+    'content':['1.jpg','2.jpg'],
+    'time':'Day 01',
+    'next':{"name": "Galle", "coords": [80.2210, 6.0535]}
+},
+{
+    'location':{"name": "Galle", "coords": [80.2210, 6.0535]},
+    'content':['3.jpg'],
+    'time':'Day 02',
+    'next':{"name": "Yala National Park", "coords": [81.5016, 6.3728]}
+},
+{
+    'location':{"name": "Yala National Park", "coords": [81.5016, 6.3728]},
+    'content':['entry_clip.mp4'],
+    'time':'Day 03',
+    'next':{"name": "Trincomalee", "coords": [81.2330, 8.5774]}
+},
+{
+    'location':{"name": "Trincomalee", "coords": [81.2330, 8.5774]},
+    'content':['4.jpg','5.jpg'],
+    'time':'Day 04',
+    'next':{"name": "Colombo", "coords": [79.861244, 6.927079]}
+}]
 
-print("Initializing animation...")
-start_time = time.time()
 
-# Set up the map
-fig = plt.figure(figsize=(10, 8))
-ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
+# Initialize locations list
+locations = []
 
-# Set the extent of the map to cover all locations
-lons = [loc["coords"][0] for loc in locations]
-lats = [loc["coords"][1] for loc in locations]
-ax.set_extent([min(lons)-1, max(lons)+1, min(lats)-1, max(lats)+1], crs=ccrs.PlateCarree())
+# Iterate through the data and collect locations
+for entry in data:
+    locations.append(entry['location'])
 
-# Add map features
-ax.add_feature(cfeature.LAND)
-ax.add_feature(cfeature.OCEAN)
-ax.add_feature(cfeature.COASTLINE)
-ax.add_feature(cfeature.BORDERS, linestyle=':')
+# Append the next location of the last entry to return to the start
+locations.append(data[-1]['next'])
 
-# Add markers for all locations
-for loc in locations:
-    ax.plot(loc["coords"][0], loc["coords"][1], 'ro', transform=ccrs.PlateCarree(), markersize=8)
+# Initialize content list
+content = []
 
-# Animation function
-line, = ax.plot([], [], 'b-', linewidth=2, transform=ccrs.PlateCarree())
-point, = ax.plot([], [], 'bo', transform=ccrs.PlateCarree(), markersize=10)
+# Iterate through the data and collect content
+for entry in data:
+    for ele in entry['content']:
+        if ele.endswith('.mp4'):
+            continue
+        content.append(ele)
 
-def init():
-    line.set_data([], [])
-    point.set_data([], [])
-    return line, point
+# Assuming `map_transitions()` returns a list of 4D arrays
+split_gifs = mt.map_transitions(locations)
+print(split_gifs)
 
-def animate(frame):
-    total_frames = 100 * (len(locations) - 1)
-    current_segment = frame // 100
-    progress_in_segment = (frame % 100) / 100
+selected_music = ad.audio_detect(content)
 
-    start = locations[current_segment]["coords"]
-    end = locations[current_segment + 1]["coords"]
+#text on images
+texted_images = it.text_in_images(data)
+print(texted_images)
 
-    current_lon = start[0] + (end[0] - start[0]) * progress_in_segment
-    current_lat = start[1] + (end[1] - start[1]) * progress_in_segment
+#arrange content
+arranged_content = ca.content_arrange(texted_images,split_gifs,data)
 
-    lons = [loc["coords"][0] for loc in locations[:current_segment+1]] + [current_lon]
-    lats = [loc["coords"][1] for loc in locations[:current_segment+1]] + [current_lat]
 
-    line.set_data(lons, lats)
-    point.set_data([current_lon], [current_lat])  # Wrap in list to make it a sequence
-
-    if frame % 10 == 0:
-        progress = (frame + 1) / total_frames * 100
-        elapsed_time = time.time() - start_time
-        estimated_total_time = elapsed_time / (progress / 100)
-        remaining_time = estimated_total_time - elapsed_time
-        print(f"Progress: {progress:.1f}% | Estimated time remaining: {remaining_time:.1f} seconds")
-
-    return line, point
-
-total_frames = 100 * (len(locations) - 1)
-print("Creating animation...")
-anim = FuncAnimation(fig, animate, frames=total_frames, init_func=init, blit=True)
-
-print("Saving animation as GIF...")
-writer = PillowWriter(fps=30)
-anim.save('map_transition.gif', writer=writer)
-print("Animation created successfully: map_transition.gif")
-
-total_time = time.time() - start_time
-print(f"Total execution time: {total_time:.1f} seconds")
-
-plt.close(fig)
-###########################################################################
-#Split the GIF
-###########################################################################
-from PIL import Image
-import os
-
-# Open the original GIF
-gif_path = 'map_transition.gif'
-original_gif = Image.open(gif_path)
-
-# Number of frames per path (100 as per your animation settings)
-frames_per_path = 100
-total_paths = len(locations) - 1  # Each segment between locations
-
-# Create output directory for the split GIFs
-output_dir = "split_gifs"
-os.makedirs(output_dir, exist_ok=True)
-
-# Loop through each path segment
-for path_index in range(total_paths):
-    # Calculate the start and end frame indices for this path segment
-    start_frame = path_index * frames_per_path
-    end_frame = start_frame + frames_per_path
-
-    # Create a list to store the frames for this segment
-    frames = []
-
-    # Extract frames for the current path segment
-    original_gif.seek(start_frame)
-    for frame_num in range(frames_per_path):
-        try:
-            frame = original_gif.copy()
-            frames.append(frame)
-            original_gif.seek(original_gif.tell() + 1)
-        except EOFError:
-            break
-
-    # Save frames as a new GIF for this path segment
-    segment_gif_path = os.path.join(output_dir, f"path_{path_index + 1}.gif")
-    frames[0].save(
-        segment_gif_path,
-        save_all=True,
-        append_images=frames[1:],
-        loop=0,
-        duration=original_gif.info['duration'],
-        disposal=2
-    )
-
-    print(f"GIF for path {path_index + 1} saved: {segment_gif_path}")
-
-print("All path GIFs created successfully.")
+#create the video
+vc.create_video_from_media(arranged_content,selected_music)
+print("Video is created")
