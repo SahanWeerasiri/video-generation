@@ -2,11 +2,8 @@ import folium
 import io
 from PIL import Image
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
 import numpy as np
-import matplotlib
-
-matplotlib.use('Agg')  # Use Agg backend to avoid GUI
+import time
 
 # Input coordinates for locations
 locations = [
@@ -32,21 +29,13 @@ def map_to_image(m):
     img = Image.open(io.BytesIO(img_data))
     return img
 
-# Calculate the bounding box for all locations
-lats = [loc["coords"][0] for loc in locations]
-lons = [loc["coords"][1] for loc in locations]
-min_lat, max_lat = min(lats), max(lats)
-min_lon, max_lon = min(lons), max(lons)
+print("Initializing animation...")
+start_time = time.time()
 
-# Create the animation
-fig, ax = plt.subplots(figsize=(10, 8))
-ax.axis('off')
+total_frames = 100 * (len(locations) - 1)
+frames = []
 
-def animate(frame):
-    ax.clear()
-    ax.axis('off')
-    
-    total_frames = 100 * (len(locations) - 1)
+for frame in range(total_frames):
     current_segment = frame // 100
     progress_in_segment = (frame % 100) / 100
 
@@ -66,13 +55,19 @@ def animate(frame):
 
     m = create_map([current_lat, current_lon], zoom)
     img = map_to_image(m)
-    ax.imshow(img)
-    return ax,
+    frames.append(img)
 
-anim = FuncAnimation(fig, animate, frames=100 * (len(locations) - 1), interval=50, blit=True)
+    # Print progress
+    if frame % 10 == 0:
+        progress = (frame + 1) / total_frames * 100
+        elapsed_time = time.time() - start_time
+        estimated_total_time = elapsed_time / (progress / 100)
+        remaining_time = estimated_total_time - elapsed_time
+        print(f"Progress: {progress:.1f}% | Estimated time remaining: {remaining_time:.1f} seconds")
 
-# Save the animation as a video
-anim.save('map_transition.mp4', writer='ffmpeg', fps=20)
-print("Video created successfully: map_transition.mp4")
+print("Saving animation as video...")
+frames[0].save('map_transition.gif', save_all=True, append_images=frames[1:], duration=50, loop=0)
+print("Video created successfully: map_transition.gif")
 
-plt.close(fig)
+total_time = time.time() - start_time
+print(f"Total execution time: {total_time:.1f} seconds")
