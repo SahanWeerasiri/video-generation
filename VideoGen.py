@@ -2,6 +2,9 @@ import folium
 import os
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 import cv2
@@ -34,7 +37,10 @@ var currentIndex = 0;
 var map = this;
 
 function moveToNextLocation() {
-    if (currentIndex >= locations.length - 1) return;
+    if (currentIndex >= locations.length - 1) {
+        document.body.setAttribute('data-animation-complete', 'true');
+        return;
+    }
     
     var start = locations[currentIndex];
     var end = locations[currentIndex + 1];
@@ -46,9 +52,8 @@ function moveToNextLocation() {
             var lat = start[0] + (end[0] - start[0]) * (step / steps);
             var lng = start[1] + (end[1] - start[1]) * (step / steps);
             
-            // Calculate zoom level (zoom out, then in)
-            var zoomOut = 5;  // Minimum zoom level
-            var zoomIn = 10;  // Maximum zoom level
+            var zoomOut = 5;
+            var zoomIn = 10;
             var zoomLevel;
             if (step <= steps / 2) {
                 zoomLevel = zoomIn + (zoomOut - zoomIn) * (step / (steps / 2));
@@ -62,14 +67,16 @@ function moveToNextLocation() {
         } else {
             currentIndex++;
             if (currentIndex < locations.length - 1) {
-                setTimeout(moveToNextLocation, 1000);  // Wait 1 second before next transition
+                setTimeout(moveToNextLocation, 1000);
+            } else {
+                document.body.setAttribute('data-animation-complete', 'true');
             }
         }
     }
     animate();
 }
 
-setTimeout(moveToNextLocation, 2000);  // Start the animation after 2 seconds
+moveToNextLocation();  // Start the animation immediately
 </script>
 """
 m.get_root().html.add_child(folium.Element(script))
@@ -78,24 +85,25 @@ m.get_root().html.add_child(folium.Element(script))
 m.save('map.html')
 
 # Set up Selenium to capture the map transition
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+options = webdriver.ChromeOptions()
+options.add_argument("--start-maximized")
+driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 driver.get(f"file://{os.path.abspath('map.html')}")
 
-# Wait to load the map completely and for animations to finish
-total_wait_time = (len(locations) - 1) * (100 * 0.05 + 1) + 2  # Calculate based on transitions
-print(f"Waiting for {total_wait_time} seconds for all transitions to complete...")
-time.sleep(total_wait_time)
+# Wait for the animation to complete
+wait = WebDriverWait(driver, 300)  # Wait up to 5 minutes
+wait.until(EC.presence_of_element_located((By.XPATH, "//body[@data-animation-complete='true']")))
 
 # Capture frames for the video
 frames = []
 try:
-    for _ in range(int(total_wait_time * 20)):  # Capture at 20 fps
-        if len(driver.window_handles) > 0:
-            driver.save_screenshot('frame.png')
-            frames.append(cv2.imread('frame.png'))
-            time.sleep(0.05)
-        else:
-            print("Browser window closed unexpectedly.")
+    while True:
+        driver.save_screenshot('frame.png')
+        frames.append(cv2.imread('frame.png'))
+        time.sleep(0.05)
+        
+        # Check if animation is complete
+        if driver.execute_script("return document.body.getAttribute('data-animation-complete') === 'true'"):
             break
 except Exception as e:
     print(f"An error occurred: {e}")
