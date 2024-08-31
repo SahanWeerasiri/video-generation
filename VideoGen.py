@@ -3,6 +3,7 @@ import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation
+from matplotlib.animation import PillowWriter
 import time
 
 # Input coordinates for locations
@@ -60,7 +61,7 @@ def animate(frame):
     lats = [loc["coords"][1] for loc in locations[:current_segment+1]] + [current_lat]
 
     line.set_data(lons, lats)
-    point.set_data(current_lon, current_lat)
+    point.set_data([current_lon], [current_lat])  # Wrap in list to make it a sequence
 
     if frame % 10 == 0:
         progress = (frame + 1) / total_frames * 100
@@ -75,11 +76,63 @@ total_frames = 100 * (len(locations) - 1)
 print("Creating animation...")
 anim = FuncAnimation(fig, animate, frames=total_frames, init_func=init, blit=True)
 
-print("Saving animation as video...")
-anim.save('map_transition.mp4', writer='ffmpeg', fps=30)
-print("Video created successfully: map_transition.mp4")
+print("Saving animation as GIF...")
+writer = PillowWriter(fps=30)
+anim.save('map_transition.gif', writer=writer)
+print("Animation created successfully: map_transition.gif")
 
 total_time = time.time() - start_time
 print(f"Total execution time: {total_time:.1f} seconds")
 
 plt.close(fig)
+###########################################################################
+#Split the GIF
+###########################################################################
+from PIL import Image
+import os
+
+# Open the original GIF
+gif_path = 'map_transition.gif'
+original_gif = Image.open(gif_path)
+
+# Number of frames per path (100 as per your animation settings)
+frames_per_path = 100
+total_paths = len(locations) - 1  # Each segment between locations
+
+# Create output directory for the split GIFs
+output_dir = "split_gifs"
+os.makedirs(output_dir, exist_ok=True)
+
+# Loop through each path segment
+for path_index in range(total_paths):
+    # Calculate the start and end frame indices for this path segment
+    start_frame = path_index * frames_per_path
+    end_frame = start_frame + frames_per_path
+
+    # Create a list to store the frames for this segment
+    frames = []
+
+    # Extract frames for the current path segment
+    original_gif.seek(start_frame)
+    for frame_num in range(frames_per_path):
+        try:
+            frame = original_gif.copy()
+            frames.append(frame)
+            original_gif.seek(original_gif.tell() + 1)
+        except EOFError:
+            break
+
+    # Save frames as a new GIF for this path segment
+    segment_gif_path = os.path.join(output_dir, f"path_{path_index + 1}.gif")
+    frames[0].save(
+        segment_gif_path,
+        save_all=True,
+        append_images=frames[1:],
+        loop=0,
+        duration=original_gif.info['duration'],
+        disposal=2
+    )
+
+    print(f"GIF for path {path_index + 1} saved: {segment_gif_path}")
+
+print("All path GIFs created successfully.")
