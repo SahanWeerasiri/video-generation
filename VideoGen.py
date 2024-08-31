@@ -1,63 +1,67 @@
-import folium
-import io
-from PIL import Image
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.animation import FuncAnimation
 import time
 
 # Input coordinates for locations
 locations = [
-    {"name": "Colombo", "coords": [6.927079, 79.861244]},
-    {"name": "Galle", "coords": [6.0535, 80.2210]},
-    {"name": "Yala National Park", "coords": [6.3728, 81.5016]},
-    {"name": "Trincomalee", "coords": [8.5774, 81.2330]},
-    {"name": "Colombo", "coords": [6.927079, 79.861244]}  # Return to start
+    {"name": "Colombo", "coords": [79.861244, 6.927079]},
+    {"name": "Galle", "coords": [80.2210, 6.0535]},
+    {"name": "Yala National Park", "coords": [81.5016, 6.3728]},
+    {"name": "Trincomalee", "coords": [81.2330, 8.5774]},
+    {"name": "Colombo", "coords": [79.861244, 6.927079]}  # Return to start
 ]
-
-def create_map(location, zoom):
-    m = folium.Map(location=location, zoom_start=zoom, tiles='OpenStreetMap')
-    for i, loc in enumerate(locations):
-        folium.Marker(
-            loc["coords"], 
-            popup=f'{loc["name"]} - Day {i+1}', 
-            icon=folium.Icon(color='green' if i == 0 else 'red')
-        ).add_to(m)
-    return m
-
-def map_to_image(m):
-    img_data = m._to_png(5)
-    img = Image.open(io.BytesIO(img_data))
-    return img
 
 print("Initializing animation...")
 start_time = time.time()
 
-total_frames = 100 * (len(locations) - 1)
-frames = []
+# Set up the map
+fig = plt.figure(figsize=(10, 8))
+ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
 
-for frame in range(total_frames):
+# Set the extent of the map to cover all locations
+lons = [loc["coords"][0] for loc in locations]
+lats = [loc["coords"][1] for loc in locations]
+ax.set_extent([min(lons)-1, max(lons)+1, min(lats)-1, max(lats)+1], crs=ccrs.PlateCarree())
+
+# Add map features
+ax.add_feature(cfeature.LAND)
+ax.add_feature(cfeature.OCEAN)
+ax.add_feature(cfeature.COASTLINE)
+ax.add_feature(cfeature.BORDERS, linestyle=':')
+
+# Add markers for all locations
+for loc in locations:
+    ax.plot(loc["coords"][0], loc["coords"][1], 'ro', transform=ccrs.PlateCarree(), markersize=8)
+
+# Animation function
+line, = ax.plot([], [], 'b-', linewidth=2, transform=ccrs.PlateCarree())
+point, = ax.plot([], [], 'bo', transform=ccrs.PlateCarree(), markersize=10)
+
+def init():
+    line.set_data([], [])
+    point.set_data([], [])
+    return line, point
+
+def animate(frame):
+    total_frames = 100 * (len(locations) - 1)
     current_segment = frame // 100
     progress_in_segment = (frame % 100) / 100
 
     start = locations[current_segment]["coords"]
     end = locations[current_segment + 1]["coords"]
 
-    current_lat = start[0] + (end[0] - start[0]) * progress_in_segment
-    current_lon = start[1] + (end[1] - start[1]) * progress_in_segment
+    current_lon = start[0] + (end[0] - start[0]) * progress_in_segment
+    current_lat = start[1] + (end[1] - start[1]) * progress_in_segment
 
-    # Calculate zoom level (zoom out, then in)
-    max_zoom = 12
-    min_zoom = 6
-    if progress_in_segment <= 0.5:
-        zoom = max_zoom + (min_zoom - max_zoom) * (progress_in_segment * 2)
-    else:
-        zoom = min_zoom + (max_zoom - min_zoom) * ((progress_in_segment - 0.5) * 2)
+    lons = [loc["coords"][0] for loc in locations[:current_segment+1]] + [current_lon]
+    lats = [loc["coords"][1] for loc in locations[:current_segment+1]] + [current_lat]
 
-    m = create_map([current_lat, current_lon], zoom)
-    img = map_to_image(m)
-    frames.append(img)
+    line.set_data(lons, lats)
+    point.set_data(current_lon, current_lat)
 
-    # Print progress
     if frame % 10 == 0:
         progress = (frame + 1) / total_frames * 100
         elapsed_time = time.time() - start_time
@@ -65,9 +69,17 @@ for frame in range(total_frames):
         remaining_time = estimated_total_time - elapsed_time
         print(f"Progress: {progress:.1f}% | Estimated time remaining: {remaining_time:.1f} seconds")
 
+    return line, point
+
+total_frames = 100 * (len(locations) - 1)
+print("Creating animation...")
+anim = FuncAnimation(fig, animate, frames=total_frames, init_func=init, blit=True)
+
 print("Saving animation as video...")
-frames[0].save('map_transition.gif', save_all=True, append_images=frames[1:], duration=50, loop=0)
-print("Video created successfully: map_transition.gif")
+anim.save('map_transition.mp4', writer='ffmpeg', fps=30)
+print("Video created successfully: map_transition.mp4")
 
 total_time = time.time() - start_time
 print(f"Total execution time: {total_time:.1f} seconds")
+
+plt.close(fig)
