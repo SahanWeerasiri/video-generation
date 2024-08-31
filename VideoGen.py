@@ -1,4 +1,5 @@
 import folium
+from folium import Figure
 import os
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -18,8 +19,12 @@ locations = [
     {"name": "Colombo", "coords": [6.927079, 79.861244]}  # Return to start
 ]
 
+# Create a Figure object
+fig = Figure(width=800, height=600)
+
 # Create a map centered at the first location
 m = folium.Map(location=locations[0]["coords"], zoom_start=10, tiles='OpenStreetMap')
+fig.add_child(m)
 
 # Add markers for all locations
 for i, loc in enumerate(locations):
@@ -32,57 +37,68 @@ for i, loc in enumerate(locations):
 # Add a smooth animation to transition between all locations
 script = """
 <script>
-var locations = """ + str([loc["coords"] for loc in locations]) + """;
-var currentIndex = 0;
-var map = this;
+function startAnimation() {
+    var locations = """ + str([loc["coords"] for loc in locations]) + """;
+    var currentIndex = 0;
+    var map = this;
 
-function moveToNextLocation() {
-    if (currentIndex >= locations.length - 1) {
-        document.body.setAttribute('data-animation-complete', 'true');
-        return;
-    }
-    
-    var start = locations[currentIndex];
-    var end = locations[currentIndex + 1];
-    var steps = 100;
-    var step = 0;
-    
-    function animate() {
-        if (step <= steps) {
-            var lat = start[0] + (end[0] - start[0]) * (step / steps);
-            var lng = start[1] + (end[1] - start[1]) * (step / steps);
-            
-            var zoomOut = 5;
-            var zoomIn = 10;
-            var zoomLevel;
-            if (step <= steps / 2) {
-                zoomLevel = zoomIn + (zoomOut - zoomIn) * (step / (steps / 2));
+    function moveToNextLocation() {
+        if (currentIndex >= locations.length - 1) {
+            document.body.setAttribute('data-animation-complete', 'true');
+            return;
+        }
+        
+        var start = locations[currentIndex];
+        var end = locations[currentIndex + 1];
+        var steps = 100;
+        var step = 0;
+        
+        function animate() {
+            if (step <= steps) {
+                var lat = start[0] + (end[0] - start[0]) * (step / steps);
+                var lng = start[1] + (end[1] - start[1]) * (step / steps);
+                
+                var zoomOut = 5;
+                var zoomIn = 10;
+                var zoomLevel;
+                if (step <= steps / 2) {
+                    zoomLevel = zoomIn + (zoomOut - zoomIn) * (step / (steps / 2));
+                } else {
+                    zoomLevel = zoomOut + (zoomIn - zoomOut) * ((step - steps / 2) / (steps / 2));
+                }
+                
+                map.setView([lat, lng], zoomLevel);
+                step++;
+                setTimeout(animate, 50);
             } else {
-                zoomLevel = zoomOut + (zoomIn - zoomOut) * ((step - steps / 2) / (steps / 2));
-            }
-            
-            map.setView([lat, lng], zoomLevel);
-            step++;
-            setTimeout(animate, 50);
-        } else {
-            currentIndex++;
-            if (currentIndex < locations.length - 1) {
-                setTimeout(moveToNextLocation, 1000);
-            } else {
-                document.body.setAttribute('data-animation-complete', 'true');
+                currentIndex++;
+                if (currentIndex < locations.length - 1) {
+                    setTimeout(moveToNextLocation, 1000);
+                } else {
+                    document.body.setAttribute('data-animation-complete', 'true');
+                }
             }
         }
+        animate();
     }
-    animate();
+
+    setTimeout(moveToNextLocation, 1000);  // Start after a short delay
 }
 
-moveToNextLocation();  // Start the animation immediately
+// Start the animation when the map is loaded
+if (document.readyState === "complete" || document.readyState === "interactive") {
+    setTimeout(startAnimation, 1000);
+} else {
+    document.addEventListener("DOMContentLoaded", function() {
+        setTimeout(startAnimation, 1000);
+    });
+}
 </script>
 """
-m.get_root().html.add_child(folium.Element(script))
+fig.get_root().header.add_child(folium.Element(script))
 
 # Save the map to an HTML file
-m.save('map.html')
+fig.save('map.html')
 
 # Set up Selenium to capture the map transition
 options = webdriver.ChromeOptions()
