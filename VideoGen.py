@@ -6,36 +6,70 @@ from webdriver_manager.chrome import ChromeDriverManager
 import time
 import cv2
 
-# Input coordinates for two locations
-location1 = [6.927079, 79.861244]  # Example: Colombo, Sri Lanka
-location2 = [7.873054, 80.771797]  # Example: Kandy, Sri Lanka
+# Input coordinates for locations
+locations = [
+    {"name": "Colombo", "coords": [6.927079, 79.861244]},
+    {"name": "Galle", "coords": [6.0535, 80.2210]},
+    {"name": "Yala National Park", "coords": [6.3728, 81.5016]},
+    {"name": "Trincomalee", "coords": [8.5774, 81.2330]},
+    {"name": "Colombo", "coords": [6.927079, 79.861244]}  # Return to start
+]
 
 # Create a map centered at the first location
-m = folium.Map(location=location1, zoom_start=15, tiles='OpenStreetMap')
-folium.Marker(location1, popup='Start Location', icon=folium.Icon(color='green')).add_to(m)
-folium.Marker(location2, popup='End Location', icon=folium.Icon(color='red')).add_to(m)
+m = folium.Map(location=locations[0]["coords"], zoom_start=10, tiles='OpenStreetMap')
 
-# Add a smooth animation to transition from the first to the second location using JavaScript
-script = f"""
+# Add markers for all locations
+for i, loc in enumerate(locations):
+    folium.Marker(
+        loc["coords"], 
+        popup=f'{loc["name"]} - Day {i+1}', 
+        icon=folium.Icon(color='green' if i == 0 else 'red')
+    ).add_to(m)
+
+# Add a smooth animation to transition between all locations
+script = """
 <script>
-    var start_lat = {location1[0]};
-    var start_lng = {location1[1]};
-    var end_lat = {location2[0]};
-    var end_lng = {location2[1]};
-    var current_lat = start_lat;
-    var current_lng = start_lng;
+var locations = """ + str([loc["coords"] for loc in locations]) + """;
+var currentIndex = 0;
+var map = this;
+
+function moveToNextLocation() {
+    if (currentIndex >= locations.length - 1) return;
+    
+    var start = locations[currentIndex];
+    var end = locations[currentIndex + 1];
     var steps = 100;
-    var i = 0;
-    var interval = setInterval(function() {{
-        if (i <= steps) {{
-            current_lat += (end_lat - start_lat) / steps;
-            current_lng += (end_lng - start_lng) / steps;
-            map.setView([current_lat, current_lng], 15);
-            i++;
-        }} else {{
-            clearInterval(interval);
-        }}
-    }}, 50);
+    var step = 0;
+    
+    function animate() {
+        if (step <= steps) {
+            var lat = start[0] + (end[0] - start[0]) * (step / steps);
+            var lng = start[1] + (end[1] - start[1]) * (step / steps);
+            
+            // Calculate zoom level (zoom out, then in)
+            var zoomOut = 5;  // Minimum zoom level
+            var zoomIn = 10;  // Maximum zoom level
+            var zoomLevel;
+            if (step <= steps / 2) {
+                zoomLevel = zoomIn + (zoomOut - zoomIn) * (step / (steps / 2));
+            } else {
+                zoomLevel = zoomOut + (zoomIn - zoomOut) * ((step - steps / 2) / (steps / 2));
+            }
+            
+            map.setView([lat, lng], zoomLevel);
+            step++;
+            setTimeout(animate, 50);
+        } else {
+            currentIndex++;
+            if (currentIndex < locations.length - 1) {
+                setTimeout(moveToNextLocation, 1000);  // Wait 1 second before next transition
+            }
+        }
+    }
+    animate();
+}
+
+setTimeout(moveToNextLocation, 2000);  // Start the animation after 2 seconds
 </script>
 """
 m.get_root().html.add_child(folium.Element(script))
@@ -47,17 +81,19 @@ m.save('map.html')
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
 driver.get(f"file://{os.path.abspath('map.html')}")
 
-# Wait to load the map completely
-time.sleep(5)  # Increased sleep time
+# Wait to load the map completely and for animations to finish
+total_wait_time = (len(locations) - 1) * (100 * 0.05 + 1) + 2  # Calculate based on transitions
+print(f"Waiting for {total_wait_time} seconds for all transitions to complete...")
+time.sleep(total_wait_time)
 
 # Capture frames for the video
 frames = []
 try:
-    for _ in range(100):
-        if len(driver.window_handles) > 0:  # Check if window is still open
+    for _ in range(int(total_wait_time * 20)):  # Capture at 20 fps
+        if len(driver.window_handles) > 0:
             driver.save_screenshot('frame.png')
             frames.append(cv2.imread('frame.png'))
-            time.sleep(0.05)  # Adjust timing if needed
+            time.sleep(0.05)
         else:
             print("Browser window closed unexpectedly.")
             break
@@ -78,11 +114,3 @@ if frames:
     print("Video created successfully: map_transition.mp4")
 else:
     print("No frames captured. Video was not created.")
-
-
-
-data = [{'location':'Colombo','content':[],'time':'Day 01','next':'Galle'},
-        {'location':'Galle','content':[],'time':'Day 02','next':'Yala National Park'},
-        {'location':'Yala National Park','content':[],'time':'Day 03','next':'Trincomalle'},
-        {'location':'Trincomalle','content':[],'time':'Day 04','next':'Colombo'}]
-
