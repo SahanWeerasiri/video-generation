@@ -13,6 +13,6 @@ def content_arrange(images,maps,data):
                 loc.append(images[loc_in_images])
                 loc_in_images+=1
         i+=1
-        loc.append(maps[i])
+        loc.append(maps[i-1])
         full_content.extend(loc)
     return full_content
