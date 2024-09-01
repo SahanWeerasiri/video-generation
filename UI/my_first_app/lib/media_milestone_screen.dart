@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class MediaMilestoneScreen extends StatefulWidget {
   final List<Map<String, dynamic>> data;
@@ -11,6 +12,8 @@ class MediaMilestoneScreen extends StatefulWidget {
 
 class _MediaMilestoneScreenState extends State<MediaMilestoneScreen> {
   int currentIndex = 0; // Tracks the current milestone index
+
+  final ImagePicker _picker = ImagePicker();
 
   // Method to add selected media paths to the content list
   void _addMediaPaths(List<String> mediaPaths) {
@@ -26,10 +29,26 @@ class _MediaMilestoneScreenState extends State<MediaMilestoneScreen> {
         currentIndex++;
       });
     } else {
-      // Handle completion of all milestones
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('All milestones completed!'),
-      ));
+      // Navigate to Summary Gallery Screen at the last milestone
+      Navigator.pushNamed(context, '/summary', arguments: widget.data);
+    }
+  }
+
+  // Method to move to the previous milestone
+  void _previousMilestone() {
+    if (currentIndex > 0) {
+      setState(() {
+        currentIndex--;
+      });
+    }
+  }
+
+  // Method to pick images from the gallery
+  Future<void> _pickImages() async {
+    final List<XFile>? images = await _picker.pickMultiImage(); // Pick multiple images
+    if (images != null && images.isNotEmpty) {
+      List<String> selectedMediaPaths = images.map((image) => image.path).toList();
+      _addMediaPaths(selectedMediaPaths);
     }
   }
 
@@ -47,22 +66,14 @@ class _MediaMilestoneScreenState extends State<MediaMilestoneScreen> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              'Day ${currentMilestone['time']} - ${currentMilestone['location']['name']}',
+              '${currentMilestone['time']} - ${currentMilestone['location']['name']}',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
           ),
-          // Placeholder for media selection UI (image picker or video picker)
+          // Placeholder for media selection UI (image picker)
           ElevatedButton(
-            onPressed: () async {
-              // Here, implement your logic to select media and get file paths
-              // For now, we'll simulate it with dummy paths
-              List<String> selectedMediaPaths = [
-                'path/to/media1.jpg',
-                'path/to/media2.mp4'
-              ];
-              _addMediaPaths(selectedMediaPaths);
-            },
-            child: Text("Add Photos/Videos"),
+            onPressed: _pickImages,
+            child: Text("Add Photos/Videos from Gallery"),
           ),
           // Display the selected content
           Expanded(
@@ -76,10 +87,22 @@ class _MediaMilestoneScreenState extends State<MediaMilestoneScreen> {
               },
             ),
           ),
-          // Button to move to the next milestone
-          ElevatedButton(
-            onPressed: _nextMilestone,
-            child: Text('Next Milestone'),
+          // Buttons to navigate between milestones
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (currentIndex > 0)
+                ElevatedButton(
+                  onPressed: _previousMilestone,
+                  child: Text('Previous Milestone'),
+                ),
+              ElevatedButton(
+                onPressed: _nextMilestone,
+                child: currentIndex == widget.data.length - 1
+                    ? Text('Finish and View Summary')
+                    : Text('Next Milestone'),
+              ),
+            ],
           ),
         ],
       ),

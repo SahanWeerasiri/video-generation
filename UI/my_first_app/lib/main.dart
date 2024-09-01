@@ -4,6 +4,7 @@ import 'media_tab_layout_screen.dart'; // Import the tab layout screen
 import 'media_selection_screen.dart';
 import 'video_player_screen.dart';
 import 'media_milestone_screen.dart';
+import 'summary_gallery_screen.dart';
 
 void main() {
   runApp(MyApp());
@@ -50,6 +51,9 @@ class MyApp extends StatelessWidget {
                   'next': {"name": "Colombo", "coords": [79.861244, 6.927079]}
                 }
               ],
+            ),
+            '/summary': (context) => SummaryGalleryScreen(
+              data: ModalRoute.of(context)!.settings.arguments as List<Map<String, dynamic>>,
             ),
       },
       initialRoute: '/', // Set the initial route
