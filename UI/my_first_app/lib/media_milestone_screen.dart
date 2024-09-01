@@ -1,108 +1,140 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class MediaMilestoneScreen extends StatefulWidget {
-  final List<Map<String, dynamic>> data;
+  final List<Map<String, dynamic>> data; // Ensure data parameter
 
-  const MediaMilestoneScreen({Key? key, required this.data}) : super(key: key);
+  MediaMilestoneScreen({required this.data}); // Constructor to accept data
 
   @override
   _MediaMilestoneScreenState createState() => _MediaMilestoneScreenState();
 }
 
 class _MediaMilestoneScreenState extends State<MediaMilestoneScreen> {
-  int currentIndex = 0; // Tracks the current milestone index
-
+  int currentIndex = 0;
   final ImagePicker _picker = ImagePicker();
+  List<Uint8List> memoryImages = []; // List to hold images for current milestone
+  List<List<Uint8List>> allImages = []; // List to store images for each milestone
 
-  // Method to add selected media paths to the content list
-  void _addMediaPaths(List<String> mediaPaths) {
+  Future<void> _selectImages() async {
+    final pickedFiles = await _picker.pickMultiImage();
+    if (pickedFiles == null) return;
+
+    final List<Uint8List> selectedImages = [];
+    for (var pickedFile in pickedFiles) {
+      final bytes = await pickedFile.readAsBytes();
+      selectedImages.add(bytes);
+    }
+
     setState(() {
-      widget.data[currentIndex]['content'].addAll(mediaPaths);
+      // Add new images to the existing list for the current milestone
+      if (currentIndex < allImages.length) {
+        allImages[currentIndex].addAll(selectedImages);
+      } else {
+        allImages.add(selectedImages);
+      }
+      memoryImages = allImages[currentIndex]; // Update memoryImages
     });
   }
 
-  // Method to move to the next milestone
-  void _nextMilestone() {
-    if (currentIndex < widget.data.length - 1) {
-      setState(() {
-        currentIndex++;
-      });
-    } else {
-      // Navigate to Summary Gallery Screen at the last milestone
-      Navigator.pushNamed(context, '/summary', arguments: widget.data);
-    }
-  }
-
-  // Method to move to the previous milestone
-  void _previousMilestone() {
-    if (currentIndex > 0) {
-      setState(() {
-        currentIndex--;
-      });
-    }
-  }
-
-  // Method to pick images from the gallery
-  Future<void> _pickImages() async {
-    final List<XFile>? images = await _picker.pickMultiImage(); // Pick multiple images
-    if (images != null && images.isNotEmpty) {
-      List<String> selectedMediaPaths = images.map((image) => image.path).toList();
-      _addMediaPaths(selectedMediaPaths);
-    }
+  void _removeImage(int index) {
+    setState(() {
+      // Remove image from the current milestone list
+      if (currentIndex < allImages.length) {
+        allImages[currentIndex].removeAt(index);
+        memoryImages = List.from(allImages[currentIndex]); // Create a new list to trigger rebuild
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentMilestone = widget.data[currentIndex];
+    final currentData = widget.data[currentIndex]; // Use data from widget
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Select Media for ${currentMilestone['location']['name']}"),
+        title: Text('Media for ${currentData['location']['name']}'),
       ),
       body: Column(
         children: [
-          // Display the current milestone info
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              '${currentMilestone['time']} - ${currentMilestone['location']['name']}',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-          ),
-          // Placeholder for media selection UI (image picker)
-          ElevatedButton(
-            onPressed: _pickImages,
-            child: Text("Add Photos/Videos from Gallery"),
-          ),
-          // Display the selected content
           Expanded(
-            child: ListView.builder(
-              itemCount: currentMilestone['content'].length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  leading: Icon(Icons.image),
-                  title: Text(currentMilestone['content'][index]),
-                );
-              },
-            ),
+            child: memoryImages.isNotEmpty
+              ? GridView.builder(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3, // Adjust the number of images in each row
+                    crossAxisSpacing: 4.0,
+                    mainAxisSpacing: 4.0,
+                  ),
+                  itemCount: memoryImages.length,
+                  itemBuilder: (context, index) {
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.memory(
+                          memoryImages[index],
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            print('Error loading image: $error');
+                            return Container(
+                              color: Colors.grey[300],
+                              child: Icon(Icons.error, color: Colors.red),
+                            );
+                          },
+                        ),
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: IconButton(
+                            icon: Icon(Icons.remove_circle, color: Colors.red),
+                            onPressed: () => _removeImage(index),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                )
+              : Center(child: Text('No images selected')),
           ),
-          // Buttons to navigate between milestones
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              if (currentIndex > 0)
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (currentIndex > 0)
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        currentIndex--;
+                        memoryImages = allImages.length > currentIndex ? List.from(allImages[currentIndex]) : [];
+                      });
+                    },
+                    child: Text('Previous Milestone'),
+                  ),
                 ElevatedButton(
-                  onPressed: _previousMilestone,
-                  child: Text('Previous Milestone'),
+                  onPressed: _selectImages,
+                  child: Text('Add Images'),
                 ),
-              ElevatedButton(
-                onPressed: _nextMilestone,
-                child: currentIndex == widget.data.length - 1
-                    ? Text('Finish and View Summary')
-                    : Text('Next Milestone'),
-              ),
-            ],
+                if (currentIndex < widget.data.length - 1)
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        currentIndex++;
+                        memoryImages = allImages.length > currentIndex ? List.from(allImages[currentIndex]) : [];
+                      });
+                    },
+                    child: Text('Next Milestone'),
+                  ),
+                if (currentIndex == widget.data.length - 1)
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/summary', arguments: widget.data);
+                    },
+                    child: Text('Finish and View Summary'),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
