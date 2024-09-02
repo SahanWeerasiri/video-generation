@@ -3,60 +3,68 @@ import AudioDetector as ad
 import ImageTexter as it
 import ContentArranger as ca
 import VideoCreator as vc
-import cv2
+from flask import Flask, jsonify, request
+import logging  # Import logging module
 
-data = [{
-    'location': {"name": "Colombo", "coords": [79.861244, 6.927079]},
-    'content': [cv2.imread('1.jpg'), cv2.imread('2.jpg')],  # Read images directly
-    'time': 'Day 01',
-    'next': {"name": "Galle", "coords": [80.2210, 6.0535]}
-},
-{
-    'location': {"name": "Galle", "coords": [80.2210, 6.0535]},
-    'content': [cv2.imread('3.jpg')],
-    'time': 'Day 02',
-    'next': {"name": "Yala National Park", "coords": [81.5016, 6.3728]}
-},
-{
-    'location': {"name": "Yala National Park", "coords": [81.5016, 6.3728]},
-    'content': [cv2.imread('4.jpg')],
-    'time': 'Day 03',
-    'next': {"name": "Trincomalee", "coords": [81.2330, 8.5774]}
-},
-{
-    'location': {"name": "Trincomalee", "coords": [81.2330, 8.5774]},
-    'content': [cv2.imread('5.jpg')],
-    'time': 'Day 04',
-    'next': {"name": "Colombo", "coords": [79.861244, 6.927079]}
-}]
+# Configure logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Initialize locations list
-locations = [entry['location'] for entry in data]
+app = Flask(__name__)
 
-# Append the next location of the last entry to return to the start
-locations.append(data[-1]['next'])
+@app.route('/generate', methods=['POST'])
+def gen():
+    # Get JSON data from the request
+    try:
+        logging.info('Received request for video generation')  # Log info
+        data = request.get_json()['data']  # Access 'data' from the JSON payload
+        logging.debug(f'Request data: {data}')  # Log debug data
+        print(data)
 
-# Initialize content list
-content = []
+        # Initialize locations list
+        locations = [entry['location'] for entry in data]
+        logging.debug(f'Locations extracted: {locations}')  # Log extracted locations
 
-# Collect content directly (since it's already read into memory as image data)
-for entry in data:
-    for ele in entry['content']:
-        content.append(ele)
+        # Append the next location of the last entry to return to the start
+        locations.append(data[-1]['next'])
+        logging.debug(f'Final locations list: {locations}')  # Log final locations list
 
-# Assuming `map_transitions()` returns a list of 4D arrays
-split_gifs = mt.map_transitions(locations)
-print(split_gifs)
+        # Initialize content list
+        content = []
 
-selected_music = ad.audio_detect(content)
+        # Collect content directly (since it's already read into memory as image data)
+        for entry in data:
+            for ele in entry['content']:
+                content.append(ele)
 
-# Add text on images
-texted_images = it.text_in_images(data)
-print(texted_images)
+        logging.debug(f'Collected content: {content}')  # Log collected content
 
-# Arrange content
-arranged_content = ca.content_arrange(texted_images, split_gifs, data)
+        # Assuming `map_transitions()` returns a list of 4D arrays
+        split_gifs = mt.map_transitions(locations)
+        logging.info(f'Map transitions generated: {split_gifs}')  # Log map transitions
 
-# Create the video
-vc.create_video_from_media(arranged_content, selected_music)
-print("Video is created")
+        selected_music = ad.audio_detect(content)
+        logging.info(f'Selected music: {selected_music}')  # Log selected music
+
+        # Add text on images
+        texted_images = it.text_in_images(data)
+        logging.info(f'Text added to images: {texted_images}')  # Log texted images
+
+        # Arrange content
+        arranged_content = ca.content_arrange(texted_images, split_gifs, data)
+        logging.info(f'Content arranged: {arranged_content}')  # Log arranged content
+
+        # Create the video
+        vc.create_video_from_media(arranged_content, selected_music)
+        logging.info("Video is created successfully")  # Log video creation success
+
+        video_path = "video.mp4"  # Update with the actual path
+        
+        # Return success message along with the video path
+        return jsonify({'message': "Video is created", 'video_path': video_path}), 200
+    except Exception as e:
+        logging.error(f"Error during video generation: {e}", exc_info=True)  # Log the error with traceback
+        print(e)
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(debug=True)

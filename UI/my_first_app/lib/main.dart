@@ -24,7 +24,6 @@ class MyApp extends StatelessWidget {
         '/media-tab-layout': (context) =>
             MediaTabLayoutScreen(), // Media tab layout route
         '/media-selection-layout': (context) => MediaSelectionScreen(),
-        '/video-player-layout': (context) => VideoPlayerScreen(),
         '/milestone': (context) => MediaMilestoneScreen(
               data: [
                 {

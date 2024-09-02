@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart'; // Import video player package
+import 'package:video_player/video_player.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
+  final String videoPath; // Required parameter
+
+  VideoPlayerScreen({Key? key, required this.videoPath}) : super(key: key);
+
   @override
   _VideoPlayerScreenState createState() => _VideoPlayerScreenState();
 }
@@ -12,10 +16,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.asset('assets/video.mp4') // Replace with video file
-      ..initialize().then((_) {
-        setState(() {}); // Refresh to display video
-      });
+    _controller =
+        VideoPlayerController.asset(widget.videoPath) // Use videoPath here
+          ..initialize().then((_) {
+            setState(() {}); // Refresh to display video
+          });
   }
 
   @override
@@ -59,7 +64,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           setState(() {
-            _controller.value.isPlaying ? _controller.pause() : _controller.play();
+            _controller.value.isPlaying
+                ? _controller.pause()
+                : _controller.play();
           });
         },
         child: Icon(

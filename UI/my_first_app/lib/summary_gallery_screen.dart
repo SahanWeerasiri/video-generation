@@ -1,20 +1,51 @@
 import 'package:flutter/material.dart';
-import 'dart:typed_data';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'video_player_screen.dart';
 
 class SummaryGalleryScreen extends StatelessWidget {
   final List<Map<String, dynamic>> data;
 
-  const SummaryGalleryScreen({Key? key, required this.data}) : super(key: key);
+  SummaryGalleryScreen({Key? key, required this.data}) : super(key: key);
 
-  void startGeneration() {}
+  var msg = 'Start Generation';
+
+  Future<void> startGeneration(BuildContext context) async {
+    try {
+      // Encode data as JSON
+      final response = await http.post(
+        Uri.parse('http://127.0.0.1:5000/generate'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'data': data}),
+      );
+
+      // Decode response
+      final decoded = json.decode(response.body) as Map<String, dynamic>;
+
+      // Get the generated video path from the response
+      final videoPath = decoded['video_path'] as String;
+
+      // Navigate to the VideoPlayerScreen and pass the video path
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => VideoPlayerScreen(
+              videoPath: videoPath), // Pass the video path correctly
+        ),
+      );
+    } catch (error) {
+      print('Error during generation: $error');
+      msg = 'Error during generation';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: ElevatedButton(
-          onPressed: startGeneration,
-          child: Text('Start Generation'),
+          onPressed: () => startGeneration(context),
+          child: Text(msg),
         ),
       ),
       body: ListView.builder(
@@ -30,11 +61,10 @@ class SummaryGalleryScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: SizedBox(
-                    height: 200, // Set a fixed height for the GridView
+                    height: 200,
                     child: GridView.builder(
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount:
-                            3, // Adjust the number of images in each row
+                        crossAxisCount: 3,
                         crossAxisSpacing: 4.0,
                         mainAxisSpacing: 4.0,
                       ),
