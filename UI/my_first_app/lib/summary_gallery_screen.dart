@@ -11,12 +11,20 @@ class SummaryGalleryScreen extends StatelessWidget {
   var msg = 'Start Generation';
 
   Future<void> startGeneration(BuildContext context) async {
-    try {
-      // Encode data as JSON
+    /*try {
+      // Extract all fields other than 'content' from each entry in data
+      final List<Map<String, dynamic>> dataWithoutContent = data.map((entry) {
+        // Remove 'content' key and keep all other key-value pairs
+        return Map<String, dynamic>.fromEntries(
+          entry.entries.where((e) => e.key != 'content'),
+        );
+      }).toList();
+
+      // Encode pathsOnly as JSON and send it to the server
       final response = await http.post(
         Uri.parse('http://127.0.0.1:5000/generate'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'data': data}),
+        body: jsonEncode({'data': dataWithoutContent}),
       );
 
       // Decode response
@@ -36,7 +44,15 @@ class SummaryGalleryScreen extends StatelessWidget {
     } catch (error) {
       print('Error during generation: $error');
       msg = 'Error during generation';
-    }
+    }*/
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VideoPlayerScreen(
+            videoPath:
+                "C:\\Users\\SAHAN\\Desktop\\test_\\combined_video.mp4"), // Pass the video path correctly
+      ),
+    );
   }
 
   @override

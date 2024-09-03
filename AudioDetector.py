@@ -1,43 +1,28 @@
 import tensorflow as tf
 from tensorflow.keras.applications import ResNet50
 from tensorflow.keras.applications.resnet50 import preprocess_input, decode_predictions
+from tensorflow.keras.preprocessing import image
 import numpy as np
 import random
 import librosa
 
-def audio_detect(image_data_list):
-    # Initialize the pre-trained ResNet50 model
+def audio_detect(image_paths):
     model = ResNet50(weights='imagenet')
 
-    # Analyze an image directly from its in-memory data
-    def analyze_image(image_data):
-        # Resize image to the expected size for ResNet50 (224x224)
-        img_data = tf.image.resize(image_data, (224, 224))
-        
-        # Expand dimensions and preprocess for model input
+    def analyze_image(image_path):
+        img = image.load_img(image_path, target_size=(224, 224))
+        img_data = image.img_to_array(img)
         img_data = np.expand_dims(img_data, axis=0)
         img_data = preprocess_input(img_data)
-
-        # Predict image content
         preds = model.predict(img_data)
         return decode_predictions(preds, top=3)[0]
 
-    def analyze_image(image_data):
-        # Resize image to the expected size for ResNet50 (224x224)
-        img_data = tf.image.resize(image_data, (224, 224))
-        
-        # Convert to a writable NumPy array and expand dimensions
-        img_data = np.copy(np.expand_dims(img_data, axis=0))
-        
-        # Preprocess for model input
-        img_data = preprocess_input(img_data)
+    def analyze_music(audio_path):
+        y, sr = librosa.load(audio_path)
+        tempo, _ = librosa.beat.beat_track(y, sr=sr)
+        mood = librosa.feature.mfcc(y=y, sr=sr).mean(axis=1)
+        return tempo, mood
 
-        # Predict image content
-        preds = model.predict(img_data)
-        return decode_predictions(preds, top=3)[0]
-
-
-    # Map content to music characteristics
     def match_music_to_content(image_analysis):
         content_to_music_map = {
             'landscape': {'tempo': 'slow', 'mood': 'calm', 'genre': 'ambient'},
@@ -77,22 +62,16 @@ def audio_detect(image_data_list):
                 if matched:
                     break  # Exit outer loop if a match is found
 
-        # Default to 'ambient' if no specific genre is found
         if not selected_music_genres:
             selected_music_genres.append('ambient')
 
-        # Randomly select a genre and track from the music library
         selected_genre = random.choice(selected_music_genres)
         selected_music = random.choice(music_library[selected_genre])
 
         return selected_music
 
-    # Analyze images directly from in-memory data
-    image_analysis = [analyze_image(img) for img in image_data_list]
+    image_analysis = [analyze_image(img) for img in image_paths]
     print("Image Analysis:", image_analysis)
-    
-    # Match the content to music
     selected_music = match_music_to_content(image_analysis)
     print("Selected Music:", selected_music)
-    
     return selected_music

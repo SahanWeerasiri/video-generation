@@ -1,54 +1,53 @@
 from PIL import Image, ImageDraw, ImageFont
-import io
 import os
 
 def text_in_images(data, output_folder='texted_images'):
-    def add_text_to_image(image_data, text):
-        # Load image from raw data
-        img = Image.open(io.BytesIO(image_data))
+    def add_text_to_image(image_path, text, output_path):
+        # Load image
+        with Image.open(image_path) as img:
+            # Create drawing context
+            draw = ImageDraw.Draw(img)
 
-        # Create drawing context
-        draw = ImageDraw.Draw(img)
+            # Define font and size
+            try:
+                font = ImageFont.truetype("arial.ttf", 30)
+            except IOError:
+                font = ImageFont.load_default()
 
-        # Define font and size
-        try:
-            font = ImageFont.truetype("arial.ttf", 30)
-        except IOError:
-            font = ImageFont.load_default()
+            # Define text position
+            text_position = (10, img.height - 40)
 
-        # Define text position
-        text_position = (10, img.height - 40)
+            # Define text color
+            text_color = (255, 255, 255)  # White
 
-        # Define text color
-        text_color = (255, 255, 255)  # White
+            # Add text to image
+            draw.text(text_position, text, font=font, fill=text_color)
 
-        # Add text to image
-        draw.text(text_position, text, font=font, fill=text_color)
-
-        # Save image to bytes
-        img_byte_arr = io.BytesIO()
-        img.save(img_byte_arr, format='PNG')
-        img_byte_arr = img_byte_arr.getvalue()
-        
-        return img_byte_arr
+            # Save the image
+            img.save(output_path)
+            return output_path
 
     # Ensure output folder exists
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
-    # Process images from the data
-    output_images = []
+    # Iterate through data and process images
+    output_paths = []
     for entry in data:
-        for image_data in entry['content']:
-            # Skip non-image data (e.g., video files)
-            if not isinstance(image_data, bytes):
+        for image_file in entry['paths']:
+            # Skip non-image files (e.g., video files)
+            if not image_file.lower().endswith(('.png', '.jpg', '.jpeg')):
                 continue
-            
+
+            # Define input and output paths
+            input_path = image_file
+            output_path = os.path.join(output_folder, f"modified_{os.path.basename(image_file)}")
+
             # Add text to image
-            modified_image = add_text_to_image(image_data, entry['time'])
-            output_images.append(modified_image)
-            
-            print("Processed image and added text.")
+            saved_path = add_text_to_image(input_path, entry['time'], output_path)
+            output_paths.append(saved_path)
+
+            print(f"Processed image: {input_path}, saved as: {saved_path}")
 
     print("All images processed successfully.")
-    return output_images
+    return output_paths

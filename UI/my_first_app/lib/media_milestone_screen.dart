@@ -32,8 +32,10 @@ class _MediaMilestoneScreenState extends State<MediaMilestoneScreen> {
     if (pickedFiles == null) return;
 
     final List<Uint8List> selectedImages = [];
+    final List<String> selectedImagePaths = [];
     for (var pickedFile in pickedFiles) {
       final bytes = await pickedFile.readAsBytes();
+      selectedImagePaths.add(pickedFile.path);
       selectedImages.add(bytes);
     }
 
@@ -44,6 +46,7 @@ class _MediaMilestoneScreenState extends State<MediaMilestoneScreen> {
 
       // Add images to the original data set's content list for the respective location
       widget.data[currentIndex]['content'].addAll(selectedImages);
+      widget.data[currentIndex]['paths'].addAll(selectedImagePaths);
     });
   }
 
@@ -54,6 +57,7 @@ class _MediaMilestoneScreenState extends State<MediaMilestoneScreen> {
 
       // Remove the image from the original data set's content list as well
       widget.data[currentIndex]['content'].removeAt(index);
+      widget.data[currentIndex]['paths'].removeAt(index);
     });
   }
 

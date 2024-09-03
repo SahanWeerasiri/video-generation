@@ -3,23 +3,41 @@ import AudioDetector as ad
 import ImageTexter as it
 import ContentArranger as ca
 import VideoCreator as vc
-from flask import Flask, jsonify, request
 import logging  # Import logging module
-from flask_cors import CORS  # Import CORS
+
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-app = Flask(__name__)
-CORS(app)  # Apply CORS to your Flask app
 
-@app.route('/generate', methods=['POST'])
 def gen():
     # Get JSON data from the request
     try:
         #logging.info('Received request for video generation')  # Log info
-        data = request.get_json()['data']  # Access 'data' from the JSON payload
-        #logging.debug(f'Request data: {data}')  # Log debug data
+        data = [{
+            'location':{"name": "Colombo", "coords": [79.861244, 6.927079]},
+            'paths':['1.jpg','2.jpg'],
+            'time':'Day 01',
+            'next':{"name": "Galle", "coords": [80.2210, 6.0535]}
+        },
+        {
+            'location':{"name": "Galle", "coords": [80.2210, 6.0535]},
+            'content':['3.jpg'],
+            'time':'Day 02',
+            'next':{"name": "Yala National Park", "coords": [81.5016, 6.3728]}
+        },
+        {
+            'location':{"name": "Yala National Park", "coords": [81.5016, 6.3728]},
+            'content':['entry_clip.mp4'],
+            'time':'Day 03',
+            'next':{"name": "Trincomalee", "coords": [81.2330, 8.5774]}
+        },
+        {
+            'location':{"name": "Trincomalee", "coords": [81.2330, 8.5774]},
+            'content':['4.jpg','5.jpg'],
+            'time':'Day 04',
+            'next':{"name": "Colombo", "coords": [79.861244, 6.927079]}
+        }]        #logging.debug(f'Request data: {data}')  # Log debug data
 
         # Initialize locations list
         locations = [entry['location'] for entry in data]
@@ -63,11 +81,9 @@ def gen():
         video_path = "combined_video.mp4"  # Update with the actual path
         
         # Return success message along with the video path
-        return jsonify({'message': "Video is created", 'video_path': video_path}), 200
     except Exception as e:
         logging.error(f"Error during video generation: {e}", exc_info=True)  # Log the error with traceback
         print(e)
-        return jsonify({'error': str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    gen()

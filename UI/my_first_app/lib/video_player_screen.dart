@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:video_player/video_player.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
@@ -16,11 +17,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   void initState() {
     super.initState();
-    _controller =
-        VideoPlayerController.asset(widget.videoPath) // Use videoPath here
-          ..initialize().then((_) {
-            setState(() {}); // Refresh to display video
-          });
+    // Initialize the video player controller with the given path.
+    _controller = VideoPlayerController.file(
+        File(widget.videoPath)) // Change this line if using network or asset.
+      ..initialize().then((_) {
+        setState(() {}); // Refresh to display video
+      });
   }
 
   @override

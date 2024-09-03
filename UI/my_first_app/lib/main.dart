@@ -32,6 +32,7 @@ class MyApp extends StatelessWidget {
                     "coords": [79.861244, 6.927079]
                   },
                   'content': [],
+                  'paths': [],
                   'time': 'Day 01',
                   'next': {
                     "name": "Galle",
@@ -44,6 +45,7 @@ class MyApp extends StatelessWidget {
                     "coords": [80.2210, 6.0535]
                   },
                   'content': [],
+                  'paths': [],
                   'time': 'Day 02',
                   'next': {
                     "name": "Yala National Park",
@@ -56,6 +58,7 @@ class MyApp extends StatelessWidget {
                     "coords": [81.5016, 6.3728]
                   },
                   'content': [],
+                  'paths': [],
                   'time': 'Day 03',
                   'next': {
                     "name": "Trincomalee",
@@ -68,6 +71,7 @@ class MyApp extends StatelessWidget {
                     "coords": [81.2330, 8.5774]
                   },
                   'content': [],
+                  'paths': [],
                   'time': 'Day 04',
                   'next': {
                     "name": "Colombo",
